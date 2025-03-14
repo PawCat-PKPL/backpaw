@@ -1,8 +1,4 @@
-from django.contrib.auth.models import User
-from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
+from html import escape
 
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -19,6 +15,15 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({'password': 'Passwords do not match'})
+        
+        username = attrs.get('username', '').lower()
+        if 'admin' in username or 'pawcat' in username:
+            raise serializers.ValidationError({'username': 'Invalid username. Can not use this username.'})
+
+        attrs['username'] = escape(username)
+        attrs['email'] = escape(attrs.get('email', ''))
+        attrs['full_name'] = escape(attrs.get('full_name', ''))
+        
         return attrs
     
     def create(self, validated_data):
@@ -31,8 +36,8 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     
     def validate(self, attrs):
-        username_or_email = attrs.get('username_or_email')
-        password = attrs.get('password')
+        username_or_email = escape(attrs.get('username_or_email'))
+        password = escape(attrs.get('password'))
         
         user = CustomUser.objects.filter(username=username_or_email).first() or \
                CustomUser.objects.filter(email=username_or_email).first()
@@ -47,8 +52,8 @@ class VerifyColorSerializer(serializers.Serializer):
     hex_color = serializers.CharField()
 
     def validate(self, data):
-        username_or_email = data.get("username_or_email")
-        hex_color = data.get("hex_color")
+        username_or_email = escape(data.get("username_or_email"))
+        hex_color = escape(data.get("hex_color"))
 
         user = CustomUser.objects.filter(email=username_or_email).first() or \
                CustomUser.objects.filter(username=username_or_email).first()

@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.urls import reverse
 
 from rest_framework import status
@@ -22,6 +23,9 @@ class TestAuthentication(APITestCase):
             password=self.user_data["password"], 
             full_name=self.user_data["full_name"]
         )
+
+    def tearDown(self):
+        cache.clear()
 
     def test_register_success(self):
         response = self.client.post(self.register_url, data={
@@ -52,6 +56,34 @@ class TestAuthentication(APITestCase):
             "password": "wrongpassword"
         })
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_login_rate_limit(self):
+        for _ in range(3):
+            self.client.post(self.login_url, {
+                'username_or_email': self.user_data['email'],
+                'password': 'wrongpassword'
+            })
+
+        response = self.client.post(self.login_url, {
+            'username_or_email': self.user_data['email'],
+            'password': 'wrongpassword'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_forgot_password_rate_limit(self):
+        for _ in range(3):
+            self.client.post(self.forgot_password_url, {
+                'username_or_email': self.user_data['email'],
+                'new_password': 'newsecurepassword123'
+            })
+
+        response = self.client.post(self.forgot_password_url, {
+            'username_or_email': self.user_data['email'],
+            'new_password': 'newsecurepassword123'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
     # def test_forgot_password_success(self):
     #     self.user.hex_color = "somehashedcolor"

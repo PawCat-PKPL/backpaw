@@ -1,3 +1,5 @@
+from html import escape
+
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import models
@@ -17,12 +19,12 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = ['username', 'full_name']
 
     def set_hex_color(self, color):
-        self.hex_color = make_password(color)
+        self.hex_color = make_password(escape(color))
 
     def check_hex_color(self, color):
         if not self.hex_color:
             return False
-        return check_password(color, self.hex_color)
+        return check_password(escape(color), self.hex_color)
 
 class PaymentMethod(models.Model):
     PAYMENT_CHOICES = [
