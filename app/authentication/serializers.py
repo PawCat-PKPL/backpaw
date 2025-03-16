@@ -5,7 +5,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from authentication.models import CustomUser
 
+def validate_username(value):
+    restricted_words = ['admin', 'pawcat']
+    if any(word in value.lower() for word in restricted_words):
+        raise serializers.ValidationError("Invalid username. Cannot use this username.")
+    return value
+
+
 class RegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(validators=[validate_username])
     password2 = serializers.CharField(write_only=True)
     
     class Meta:
@@ -16,11 +24,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({'password': 'Passwords do not match'})
         
-        username = attrs.get('username', '').lower()
-        if 'admin' in username or 'pawcat' in username:
-            raise serializers.ValidationError({'username': 'Invalid username. Can not use this username.'})
-
-        attrs['username'] = escape(username)
         attrs['email'] = escape(attrs.get('email', ''))
         attrs['full_name'] = escape(attrs.get('full_name', ''))
         

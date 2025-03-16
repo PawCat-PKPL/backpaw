@@ -5,7 +5,7 @@ from authentication.views import ForgotPasswordView, LoginView, RegisterView
 app_name = 'authentication'
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
-    path('login/', LoginView.as_view(), name='login'),
-    path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('register', RegisterView.as_view(), name='register'),
+    path('login', LoginView.as_view(), name='login'),
+    path('forgot-password', ForgotPasswordView.as_view(), name='forgot-password'),
 ]

@@ -14,11 +14,15 @@ def hello_pawcat(request):
 class RateLimiter:
     @staticmethod
     def is_rate_limited(key, limit=3, timeout=300):
-        attempts = cache.get(key, 0)
-        if attempts >= limit:
+        failures = cache.get(key, 0)
+        if failures >= limit:
             return True
-        cache.set(key, attempts + 1, timeout=timeout)
         return False
+
+    @staticmethod
+    def increment_failures(key, timeout=300):
+        failures = cache.get(key, 0)
+        cache.set(key, failures + 1, timeout=timeout)
 
     @staticmethod
     def reset_attempts(key):
@@ -42,6 +46,8 @@ class LoginView(APIView):
         if serializer.is_valid():
             RateLimiter.reset_attempts(key)
             return api_response(status.HTTP_200_OK, "Login successful", serializer.validated_data)
+        
+        RateLimiter.increment_failures(key)
         return api_response(status.HTTP_400_BAD_REQUEST, "Invalid credentials", serializer.errors)
 
 class ForgotPasswordView(APIView):
