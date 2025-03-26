@@ -1,12 +1,12 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
-from authentication.models import CustomUser
+from authentication.models import BankDetail, CustomUser, PaymentMethod
 from user.models import Friendship, Notification
-from user.serializers import NotificationSerializer, UserSerializer
+from user.serializers import NotificationSerializer, UserProfileSerializer, UserSerializer
 from utils import api_response
 
 # NOTIFICATION
@@ -169,3 +169,90 @@ class ListFriendsView(APIView):
         }
         
         return api_response(status.HTTP_200_OK, "List of friends retrieved successfully", data)
+    
+
+# PROFILE
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = CustomUser.objects.annotate(
+            friends_count=Count(
+                "sent_requests",
+                filter=Q(sent_requests__status="accepted"),
+                distinct=True
+            ) + Count(
+                "received_requests",
+                filter=Q(received_requests__status="accepted"),
+                distinct=True
+            )
+        ).get(id=request.user.id)
+        serializer = UserProfileSerializer(user)
+        return api_response(status.HTTP_200_OK, "User profile retrieved", serializer.data)
+
+    def patch(self, request):
+        user = request.user
+        data = request.data
+
+        full_name = data.get("full_name", user.full_name)
+        bio = data.get("bio", user.bio)
+        avatar_id = data.get("avatar_id", user.avatar_id)
+
+        if len(full_name) > 255:
+            return api_response(status.HTTP_400_BAD_REQUEST, "Full name is too long")
+
+        if bio and len(bio) > 500: 
+            return api_response(status.HTTP_400_BAD_REQUEST, "Bio is too long")
+
+        # Update
+        user.full_name = full_name
+        user.bio = bio
+        user.avatar_id = avatar_id
+
+        user.save()
+
+        return api_response(status.HTTP_200_OK, "Profile updated successfully")
+    
+class PaymentMethodView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        payment_type = request.data.get("payment_type")
+        account_number = request.data.get("account_number")
+
+        if not payment_type or not account_number:
+            return api_response(status.HTTP_400_BAD_REQUEST, "Payment type and account number are required")
+
+        if payment_type not in dict(PaymentMethod.PAYMENT_CHOICES):
+            return api_response(status.HTTP_400_BAD_REQUEST, "Invalid payment type")
+
+        payment, created = PaymentMethod.objects.update_or_create(
+            user=request.user, payment_type=payment_type, defaults={"account_number": account_number}
+        )
+
+        return api_response(status.HTTP_200_OK, "Payment method updated" if not created else "Payment method added")
+
+
+class BankDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        bank_name = request.data.get("bank_name")
+        account_number = request.data.get("account_number")
+
+        if not bank_name or not account_number:
+            return api_response(status.HTTP_400_BAD_REQUEST, "Bank name and account number are required")
+
+        bank, created = BankDetail.objects.update_or_create(
+            user=request.user, bank_name=bank_name, defaults={"account_number": account_number}
+        )
+
+        return api_response(status.HTTP_200_OK, "Bank account updated" if not created else "Bank account added")
+
+    def delete(self, request, bank_name):
+        try:
+            bank = BankDetail.objects.get(user=request.user, bank_name=bank_name)
+            bank.delete()
+            return api_response(status.HTTP_200_OK, "Bank account removed")
+        except BankDetail.DoesNotExist:
+            return api_response(status.HTTP_404_NOT_FOUND, "Bank account not found")
