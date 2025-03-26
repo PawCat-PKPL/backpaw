@@ -1,10 +1,12 @@
 from html import escape
 from django.http import HttpResponse
 from django.core.cache import cache
+from django.contrib.auth import login
 
 from rest_framework import status
 from rest_framework.views import APIView
 
+from authentication.models import CustomUser
 from authentication.serializers import LoginSerializer, RegisterSerializer, VerifyColorSerializer
 from utils import api_response
 
@@ -45,7 +47,14 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             RateLimiter.reset_attempts(key)
-            return api_response(status.HTTP_200_OK, "Login successful", serializer.validated_data)
+
+            user = CustomUser.objects.get(id=serializer.validated_data['user_id'])
+            login(request, user)
+            
+            return api_response(status.HTTP_200_OK, "Login successful", {
+                'refresh': serializer.validated_data['refresh'],
+                'access': serializer.validated_data['access']
+            })
         
         RateLimiter.increment_failures(key)
         return api_response(status.HTTP_400_BAD_REQUEST, "Invalid credentials", serializer.errors)
@@ -60,7 +69,7 @@ class ForgotPasswordView(APIView):
         if serializer.is_valid():
             RateLimiter.reset_attempts(key)
             user = serializer.validated_data["user"]
-            new_password = escape(request.data.get("new_password"))
+            new_password = request.data.get("new_password")
 
             if not new_password:
                 return api_response(status.HTTP_400_BAD_REQUEST, "New password is required")

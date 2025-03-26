@@ -6,4 +6,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('hello/', hello_pawcat, name='hello-pawcat'),
     path('api/auth/', include('authentication.urls')),
+    path('api/admin/', include('admin_dashboard.urls')),
+    path('api/user/', include('user.urls')),
 ]

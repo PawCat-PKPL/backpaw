@@ -1,4 +1,5 @@
 from html import escape
+from zoneinfo import ZoneInfo
 
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -40,14 +41,18 @@ class LoginSerializer(serializers.Serializer):
     
     def validate(self, attrs):
         username_or_email = escape(attrs.get('username_or_email'))
-        password = escape(attrs.get('password'))
+        password = attrs.get('password')
         
         user = CustomUser.objects.filter(username=username_or_email).first() or \
                CustomUser.objects.filter(email=username_or_email).first()
         
         if user and user.check_password(password):
             refresh = RefreshToken.for_user(user)
-            return {'refresh': str(refresh), 'access': str(refresh.access_token)}
+            attrs['user_id'] = user.id
+            attrs['refresh'] = str(refresh)
+            attrs['access'] = str(refresh.access_token)
+            return attrs
+        
         raise serializers.ValidationError('Invalid credentials')
         
 class VerifyColorSerializer(serializers.Serializer):
@@ -69,3 +74,11 @@ class VerifyColorSerializer(serializers.Serializer):
 
         data["user"] = user
         return data
+    
+class UserSerializer(serializers.ModelSerializer):
+    date_joined = serializers.DateTimeField(format='%d-%m-%Y %H:%M:%S')
+    last_login = serializers.DateTimeField(format='%d-%m-%Y %H:%M:%S', allow_null=True)
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'avatar_id', 'username', 'email', 'full_name', 'date_joined', 'last_login']

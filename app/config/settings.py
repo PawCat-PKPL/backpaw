@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
 
     'authentication',
+    'admin_dashboard',
+    'user',
 ]
 
 MIDDLEWARE = [
@@ -136,7 +138,7 @@ AUTH_USER_MODEL = "authentication.CustomUser"
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Jakarta'
 
 USE_I18N = True
 
