@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase
 from authentication.models import CustomUser
 from user.models import Friendship
 
-class TestFriendViews(APITestCase):
+class TestFriend(APITestCase):
     def setUp(self):
         self.user1 = CustomUser.objects.create_user(
             email='user1@example.com', 

@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase
 from authentication.models import CustomUser
 from user.models import Notification
 
-class TestSendNotificationView(APITestCase):
+class TestSendNotification(APITestCase):
     def setUp(self):
         self.admin_user = CustomUser.objects.create_superuser(
             email="admin@example.com", 
