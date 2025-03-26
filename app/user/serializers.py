@@ -1,7 +1,13 @@
 from html import escape
 from rest_framework import serializers
 
-from user.models import Notification
+from authentication.models import CustomUser
+from user.models import Friendship, Notification
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'avatar_id']
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,3 +26,11 @@ class NotificationSerializer(serializers.ModelSerializer):
         data['title'] = escape(title)
         data['message'] = escape(message)
         return data
+
+class FriendshipSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Friendship
+        fields = ['id', 'sender', 'receiver', 'status', 'created_at']
