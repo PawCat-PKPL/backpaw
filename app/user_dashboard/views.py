@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from .models import Transaction, Category
-from .serializers import TransactionSerializer
+from .serializers import TransactionSerializer, CategorySerializer
 from utils import api_response
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
@@ -76,3 +76,41 @@ class TransactionDetailView(APIView):
 
         transaction.delete()
         return api_response(status.HTTP_200_OK, "Transaction deleted")
+    
+class CategoryListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        categories = Category.objects.filter(user=request.user)
+        serializer = CategorySerializer(categories, many=True)
+        return api_response(status.HTTP_200_OK, "Categories retrieved", serializer.data)
+
+    def post(self, request):
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return api_response(status.HTTP_201_CREATED, "Category created", serializer.data)
+        return api_response(status.HTTP_400_BAD_REQUEST, "Invalid data", serializer.errors)
+
+class CategoryDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk, user):
+        return Category.objects.filter(pk=pk, user=user).first()
+
+    def put(self, request, pk):
+        category = self.get_object(pk, request.user)
+        if not category:
+            return api_response(status.HTTP_404_NOT_FOUND, "Category not found")
+        serializer = CategorySerializer(category, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return api_response(status.HTTP_200_OK, "Category updated", serializer.data)
+        return api_response(status.HTTP_400_BAD_REQUEST, "Invalid data", serializer.errors)
+
+    def delete(self, request, pk):
+        category = self.get_object(pk, request.user)
+        if not category:
+            return api_response(status.HTTP_404_NOT_FOUND, "Category not found")
+        category.delete()
+        return api_response(status.HTTP_204_NO_CONTENT, "Category deleted")
