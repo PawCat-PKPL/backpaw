@@ -18,6 +18,14 @@ def user_list(request):
 
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
+def active_users(request):
+    five_months_ago = now() - relativedelta(months=5)
+    active_users = CustomUser.objects.filter(last_login__gte=five_months_ago)
+    serializer = UserSerializer(active_users, many=True)
+    return api_response(status.HTTP_200_OK, "Users active in the last 5 months", serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
 def inactive_users(request):
     five_months_ago = now() - relativedelta(months=5)
     inactive_users = CustomUser.objects.filter(last_login__lt=five_months_ago)
