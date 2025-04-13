@@ -9,4 +9,9 @@ urlpatterns = [
     # Category endpoints
     path('categories/', CategoryListCreateView.as_view(), name='category-list-create'),
     path('categories/<int:pk>/', CategoryDetailView.as_view(), name='category-detail'),
+
+    # Statistics endpoints
+    path('statistics/summary/', StatisticsSummaryView.as_view(), name='statistics-summary'),
+    path('statistics/categories/', CategoryStatisticsView.as_view(), name='statistics-categories'),
+    path('statistics/monthly-trends/', MonthlyTrendsView.as_view(), name='statistics-monthly-trends'),
 ]
