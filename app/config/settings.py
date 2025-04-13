@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
 
 load_dotenv()
 
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
 
     'authentication',
     'admin_dashboard',
@@ -67,6 +69,15 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
+
+CORS_ALLOW_HEADERS = [
+    "content-type",
+    "authorization",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'config.urls'
 
@@ -124,12 +135,20 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'authentication.auth.CookieJWTAuthentication',
     ),
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "AUTH_HEADER_TYPES": ("Bearer", ),
 }
 
 AUTH_USER_MODEL = "authentication.CustomUser"
