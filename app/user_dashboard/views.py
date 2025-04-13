@@ -14,7 +14,7 @@ from django.db.models.functions import TruncMonth, TruncYear, TruncWeek
 from datetime import datetime, timedelta
 import calendar
 
-f
+
 
 
 class TransactionListCreateView(APIView):
