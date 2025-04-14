@@ -15,8 +15,6 @@ from datetime import datetime, timedelta
 import calendar
 
 
-
-
 class TransactionListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -37,6 +35,8 @@ class TransactionListCreateView(APIView):
             elif transaction.type == "expense":
                 user.saldo -= Decimal(transaction.amount)
             user.save()
+
+            user.refresh_from_db()
 
             return api_response(status.HTTP_201_CREATED, "Transaction added", serializer.data)
         return api_response(status.HTTP_400_BAD_REQUEST, "Invalid data", serializer.errors)
@@ -134,11 +134,11 @@ class StatisticsSummaryView(APIView):
         start_of_month = today.replace(day=1)
         start_of_year = today.replace(month=1, day=1)
 
-        # Get data for different periods
-        today_stats = self._get_period_summary(request.user, today, today)
-        week_stats = self._get_period_summary(request.user, start_of_week, today)
-        month_stats = self._get_period_summary(request.user, start_of_month, today)
-        year_stats = self._get_period_summary(request.user, start_of_year, today)
+        # Ambil data per periode
+        today_stats = self._get_period_summary(request.user, today, today, by='day')
+        week_stats = self._get_period_summary(request.user, start_of_week, today, by='week')
+        month_stats = self._get_period_summary(request.user, start_of_month, today, by='month')
+        year_stats = self._get_period_summary(request.user, start_of_year, today, by='year')
 
         data = {
             'today': today_stats,
@@ -150,79 +150,81 @@ class StatisticsSummaryView(APIView):
 
         return api_response(status.HTTP_200_OK, "Statistics retrieved", data)
 
-    def _get_period_summary(self, user, start_date, end_date):
-        # Get income data
+    def _get_period_summary(self, user, start_date, end_date, by='day'):
+        filters = {'user': user}
+
+        if by == 'day':
+            filters['date'] = start_date
+        elif by == 'week':
+            filters['date__year'] = start_date.isocalendar()[0]
+            filters['date__week'] = start_date.isocalendar()[1]
+        elif by == 'month':
+            filters['date__year'] = start_date.year
+            filters['date__month'] = start_date.month
+        elif by == 'year':
+            filters['date__year'] = start_date.year
+        else:
+            filters['date__range'] = (start_date, end_date)
+
         income_data = Transaction.objects.filter(
-            user=user,
-            type='income',
-            date__gte=start_date,
-            date__lte=end_date
+            **filters,
+            type='income'
         ).aggregate(
-            total=Sum('amount') or Decimal('0.00'),
+            total=Sum('amount'),
             count=Count('id')
         )
 
-        # Get expense data
         expense_data = Transaction.objects.filter(
-            user=user,
-            type='expense',
-            date__gte=start_date,
-            date__lte=end_date
+            **filters,
+            type='expense'
         ).aggregate(
-            total=Sum('amount') or Decimal('0.00'),
+            total=Sum('amount'),
             count=Count('id')
         )
+     
 
-        # Calculate net
         income_total = income_data['total'] or Decimal('0.00')
         expense_total = expense_data['total'] or Decimal('0.00')
+        
         net = income_total - expense_total
 
         return {
-            'income': income_data,
-            'expenses': expense_data,
+            'income': {
+                'total': income_total,
+                'count': income_data['count']
+            },
+            'expenses': {
+                'total': expense_total,
+                'count': expense_data['count']
+            },
             'net': net
         }
-
 
 class CategoryStatisticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Get transaction statistics per category"""
-        period = request.query_params.get('period', 'month')
+        """Get transaction statistics per category for the current month"""
         transaction_type = request.query_params.get('type', 'expense')
         
-        # Determine date range based on period
+        # Determine the date range for the current month
         today = datetime.today().date()
-        if period == 'week':
-            start_date = today - timedelta(days=today.weekday())
-        elif period == 'month':
-            start_date = today.replace(day=1)
-        elif period == 'year':
-            start_date = today.replace(month=1, day=1)
-        elif period == 'all':
-            start_date = None
-        else:
-            return api_response(
-                status.HTTP_400_BAD_REQUEST, 
-                "Invalid period. Use 'week', 'month', 'year', or 'all'"
-            )
+        start_date = today.replace(day=1)  # First day of the current month
 
-        # Base query
+        # Base query to filter transactions for the current month and specified type
         query = Transaction.objects.filter(
             user=request.user,
-            type=transaction_type
+            type=transaction_type,
+            date__gte=start_date,  # Filter from the first day of the current month
+            date__lte=today  # Filter until today
         )
-        
-        # Apply date filter if not 'all'
-        if start_date:
-            query = query.filter(date__gte=start_date, date__lte=today)
         
         # Get total for percentage calculation
         total_amount = query.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        # Get data per category
+        print(f"Total amount for all transactions in the month: {total_amount}")  # Debugging print
+        
+        # Get data per category (ID, name, total, and transaction count)
         categories = query.values(
             'category__id', 
             'category__name'
@@ -231,24 +233,26 @@ class CategoryStatisticsView(APIView):
             count=Count('id')
         ).order_by('-total')
         
-        # Calculate percentage and prepare response
+        # Calculate percentage and prepare the response data
         result = []
         for cat in categories:
             percentage = (cat['total'] / total_amount) * 100 if total_amount > 0 else 0
             result.append({
                 'category_id': cat['category__id'],
-                'category_name': cat['category__name'] or 'Uncategorized',
+                'category_name': cat['category__name'] or 'Uncategorized',  # Handle empty category name
                 'total': cat['total'],
                 'count': cat['count'],
-                'percentage': round(percentage, 2)
+                'percentage': round(percentage, 2)  # Round percentage to two decimal places
             })
+        
+        print(f"Resulting data per category: {result}")  # Debugging print
             
+        # Return the response with the statistics
         return api_response(
             status.HTTP_200_OK, 
-            f"{transaction_type.capitalize()} statistics by category", 
+            f"{transaction_type.capitalize()} statistics by category for {today.strftime('%B %Y')}", 
             result
         )
-
 
 class MonthlyTrendsView(APIView):
     permission_classes = [IsAuthenticated]
