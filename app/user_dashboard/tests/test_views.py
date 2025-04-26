@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.test import TestCase, Client
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.contrib.auth import get_user_model
+from authentication.models import CustomUser
 from user_dashboard.models import Transaction, Category
 from user_dashboard.serializers import TransactionSerializer, CategorySerializer
 import base64
@@ -12,7 +12,7 @@ from django.utils import timezone
 import datetime
 from unittest.mock import patch
 
-User = get_user_model()
+User = CustomUser
 
 class TransactionAPISecurityTests(TestCase):
     """
