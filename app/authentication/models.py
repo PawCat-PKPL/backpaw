@@ -11,6 +11,7 @@ class CustomUser(AbstractUser):
     payment_info = models.CharField(max_length=50, blank=True, null=True)
     
     hex_color = models.CharField(max_length=128, blank=True, null=True)
+    saldo = models.IntegerField(default=0)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'full_name']
