@@ -1,15 +1,15 @@
-import json
-from decimal import Decimal
+from django.utils import timezone
+from django.test import TestCase
 from django.urls import reverse
-from django.test import TestCase, Client
+
 from rest_framework import status
 from rest_framework.test import APIClient
+
 from authentication.models import CustomUser
 from user_dashboard.models import Transaction, Category
-from user_dashboard.serializers import TransactionSerializer, CategorySerializer
-import base64
-from django.utils import timezone
-import datetime
+
+import json
+from decimal import Decimal
 from unittest.mock import patch
 
 User = CustomUser
