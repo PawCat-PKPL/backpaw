@@ -1,13 +1,14 @@
 from django.utils.timezone import now
 from django.urls import reverse
-from datetime import timedelta
-import json
 
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
 from authentication.models import CustomUser
 
+from datetime import timedelta
+import json
+import django
 
 class TestAdminDashboardSecurity(APITestCase):
     def setUp(self):
@@ -171,7 +172,6 @@ class TestAdminDashboardSecurity(APITestCase):
     def test_django_version(self):
         # Tes versi Django yang digunakan
         # OWASP A06:2021 - Vulnerable and Outdated Components
-        import django
         self.assertTrue(django.get_version() >= '4.2')
 
     
