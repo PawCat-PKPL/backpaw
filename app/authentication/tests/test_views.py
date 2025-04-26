@@ -1,5 +1,6 @@
 from django.core.cache import cache
 from django.urls import reverse
+from django.conf import settings
 
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -116,7 +117,6 @@ class TestAuthentication(APITestCase):
 
     # 5. Security Misconfiguration - server production harus DEBUG = False
     def test_debug_mode_off(self):
-        from django.conf import settings
         self.assertFalse(settings.DEBUG)
 
     # 6. Vulnerable and Outdated Components -  dummy test
