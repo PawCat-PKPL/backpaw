@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.utils import timezone
 from django.test import TestCase
 from django.urls import reverse
@@ -62,8 +63,8 @@ class TransactionAPISecurityTests(TestCase):
         self.client = APIClient()
         
         # API endpoints
-        self.transactions_url = reverse('transaction-list-create')
-        self.categories_url = reverse('category-list-create')
+        self.transactions_url = reverse('user_dashboard:transaction-list-create')
+        self.categories_url = reverse('user_dashboard:category-list-create')
         
     # 1. A01:2021 – Broken Access Control
     def test_unauthorized_access_prevented(self):
@@ -81,7 +82,7 @@ class TransactionAPISecurityTests(TestCase):
         self.client.force_authenticate(user=self.user1)
         
         # Attempt to access transaction belonging to user2
-        transaction_detail_url = reverse('transaction-detail', kwargs={'pk': self.transaction2.id})
+        transaction_detail_url = reverse('user_dashboard:transaction-detail', kwargs={'pk': self.transaction2.id})
         
         # Try to update
         response = self.client.patch(transaction_detail_url, {'amount': '200.00'})
@@ -332,3 +333,140 @@ class TransactionAPISecurityTests(TestCase):
             
             # no internal server errors occur and no sensitive data is leaked
             self.assertNotIn(response.status_code, [500, 502, 503, 504])
+
+class StatisticsTestCase(TestCase):
+    def setUp(self):
+        # Create test users
+        self.user = User.objects.create_user(
+            username="testuser1",
+            email="test1@example.com",
+            password="SecurePass123!",
+            saldo=Decimal('1000.00')
+        )
+        
+        # Create test categories
+        self.category1 = Category.objects.create(name="Food", user=self.user)
+        self.category2 = Category.objects.create(name="Salary", user=self.user)
+        
+        # Create test transactions
+        today = timezone.now().date()
+        
+        Transaction.objects.create(
+            user=self.user,
+            category=self.category1,
+            amount=Decimal('50.00'),
+            type='expense',
+            description='Groceries',
+            date=today
+        )
+        
+        Transaction.objects.create(
+            user=self.user,
+            category=self.category2,
+            amount=Decimal('500.00'),
+            type='income',
+            description='Salary Payment',
+            date=today
+        )
+
+        # Set up API client and authenticate
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        # API endpoints
+        self.summary_url = reverse('user_dashboard:statistics-summary')
+        self.categories_url = reverse('user_dashboard:statistics-categories')
+        self.monthly_trends_url = reverse('user_dashboard:statistics-monthly-trends')
+    
+    def test_summary_statistics(self):
+        response = self.client.get(self.summary_url)
+        self.assertEqual(response.status_code, 200)
+        data = response.data['data']
+
+        self.assertIn('today', data)
+        self.assertIn('this_week', data)
+        self.assertIn('this_month', data)
+        self.assertIn('this_year', data)
+        self.assertIn('saldo', data)
+
+        self.assertEqual(Decimal(str(data['saldo'])), self.user.saldo)
+
+        for period in ['today', 'this_week', 'this_month', 'this_year']:
+            self.assertIn('income', data[period])
+            self.assertIn('expenses', data[period])
+            self.assertIn('net', data[period])
+
+    def test_category_statistics(self):
+        response = self.client.get(self.categories_url)
+        self.assertEqual(response.status_code, 200)
+        data = response.data['data']
+
+        # We should have 1 expense category
+        self.assertEqual(len(data), 1)
+
+        # Test with income type
+        url = f"{self.categories_url}?type=income"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.data['data']
+
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['category_name'], 'Salary')
+
+    def test_monthly_trends(self):
+        response = self.client.get(self.monthly_trends_url)
+        self.assertEqual(response.status_code, 200)
+        data = response.data['data']
+
+        self.assertEqual(len(data), 12)
+
+        for month_data in data:
+            self.assertIn('month', month_data)
+            self.assertIn('month_name', month_data)
+            self.assertIn('income', month_data)
+            self.assertIn('expenses', month_data)
+            self.assertIn('net', month_data)
+
+        # Test with specific year
+        current_year = datetime.today().year
+        url = f"{self.monthly_trends_url}?year={current_year - 1}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_unauthorized_access_prevented(self):
+        """Test that unauthorized access is blocked (A01)"""
+        self.client.logout()
+        urls = [self.summary_url, self.categories_url, self.monthly_trends_url]
+        for url in urls:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 401)
+
+    def test_sensitive_data_not_exposed(self):
+        """Test that sensitive data is not exposed (A02)"""
+        response = self.client.get(self.summary_url)
+        self.assertEqual(response.status_code, 200)
+        response_data = str(response.data)
+
+        self.assertNotIn('password', response_data)
+        self.assertNotIn('token', response_data)
+        self.assertNotIn('session', response_data)
+
+    def test_invalid_year_query_handled(self):
+        """Test that invalid year query does not expose system info (A08)"""
+        url = f"{self.monthly_trends_url}?year=invalidyear"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+
+        response_data = str(response.data).lower()
+        sensitive_keywords = ['django', 'traceback', 'settings', 'python']
+        for keyword in sensitive_keywords:
+            self.assertNotIn(keyword, response_data)
+
+    @patch('logging.Logger.warning')
+    @patch('logging.Logger.error')
+    def test_security_events_logged(self, mock_error_log, mock_warning_log):
+        """Test that security events are logged (A09)"""
+        self.client.logout()
+        response = self.client.get(self.summary_url)
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(True) 

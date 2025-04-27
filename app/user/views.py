@@ -41,7 +41,7 @@ class SendNotificationView(APIView):
             Notification.objects.create(title=data['title'], message=data['message'], sender=sender, receiver=receiver)
             return api_response(status.HTTP_201_CREATED, 'Notification successfully sent')
         except CustomUser.DoesNotExist:
-            return api_response(status.HTTP_404_NOT_FOUND, 'User not found')
+            return api_response(status.HTTP_400_BAD_REQUEST, 'Invalid user ID')
         
 class UserNotificationView(APIView):
     permission_classes = [IsAuthenticated]
