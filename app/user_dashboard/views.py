@@ -121,7 +121,7 @@ class CategoryDetailView(APIView):
         if not category:
             return api_response(status.HTTP_404_NOT_FOUND, "Category not found")
         category.delete()
-        return api_response(status.HTTP_204_NO_CONTENT, "Category deleted")
+        return api_response(status.HTTP_200_OK, "Category deleted")
 
 
 class StatisticsSummaryView(APIView):
