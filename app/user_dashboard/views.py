@@ -222,8 +222,6 @@ class CategoryStatisticsView(APIView):
         # Get total for percentage calculation
         total_amount = query.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        print(f"Total amount for all transactions in the month: {total_amount}")  # Debugging print
-        
         # Get data per category (ID, name, total, and transaction count)
         categories = query.values(
             'category__id', 
@@ -245,8 +243,7 @@ class CategoryStatisticsView(APIView):
                 'percentage': round(percentage, 2)  # Round percentage to two decimal places
             })
         
-        print(f"Resulting data per category: {result}")  # Debugging print
-            
+
         # Return the response with the statistics
         return api_response(
             status.HTTP_200_OK, 
