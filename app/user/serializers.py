@@ -15,17 +15,30 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        title = data.get('title', '').strip()
-        message = data.get('message', '').strip()
-
+        # Make sure title and message exist
         if not data.get('title'):
             raise serializers.ValidationError("Title is required")
         if not data.get('message'):
             raise serializers.ValidationError("Message is required")
         
-        data['title'] = escape(title)
-        data['message'] = escape(message)
+        # Ensure strings are properly escaped to prevent XSS
+        if 'title' in data and data['title']:
+            data['title'] = escape(str(data['title']).strip())
+        if 'message' in data and data['message']:
+            data['message'] = escape(str(data['message']).strip())
+        
         return data
+    
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        # Escape any potentially unescaped content
+        if 'title' in representation:
+            representation['title'] = escape(str(representation['title']))
+        if 'message' in representation:
+            representation['message'] = escape(str(representation['message']))
+            
+        return representation
 
 class FriendshipSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)

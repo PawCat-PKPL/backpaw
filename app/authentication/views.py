@@ -71,14 +71,14 @@ class LoginView(APIView):
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=False,
+                secure=True, # Safari = False
                 samesite="None"
             )
             response.set_cookie(
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                secure=False,
+                secure=True, # Safari = False
                 samesite="None"
             )
 
